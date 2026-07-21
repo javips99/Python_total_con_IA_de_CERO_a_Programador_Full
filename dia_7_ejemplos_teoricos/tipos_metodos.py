@@ -110,7 +110,8 @@ llamado cantidad_flechas.
 
 '''
 class Personaje:
-
-    @classmethod
-    def lanzar_flecha(cls, cantidad_flechas):
-        return cantidad_flechas - 1
+    def __init__(self, cantidad_flechas):
+        self.cantidad_flechas = cantidad_flechas
+        
+    def lanzar_flecha(self):
+        self.cantidad_flechas = self.cantidad_flechas-1
