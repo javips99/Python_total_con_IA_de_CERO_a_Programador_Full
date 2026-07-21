@@ -38,6 +38,10 @@ print(f"Total de recetas disponibles: {total_recetas}")
 opcion_menu = 0
 while opcion_menu != 6:
     system("cls")
+    total_recetas = len(list(ruta_base.rglob("*.txt")))
+    print(f"Las recetas se encuentran en: {ruta_base}")
+    print(f"Total de recetas disponibles: {total_recetas}")
+
     print("\nMenú de opciones:")
     print("1. Leer receta")
     print("2. Crear receta")
