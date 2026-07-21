@@ -25,9 +25,6 @@ def mostrar_recetas(ruta):
             lista_recetas.append(elemento)
     return lista_recetas
 
-
-
-
 # Inicio del programa
 
 bienvenida = "Bienvenido al recetario de cocina"
@@ -59,32 +56,42 @@ while opcion_menu != 6:
         ruta_receta = mis_recetas[index_receta]
         receta_leida = ruta_receta.read_text()
         print("\n*** LEYENDO RECETA ***")
-        print(receta_leida)
-        
-
+        print(receta_leida)      
 
     elif opcion_menu == 2:
-        print("Has elegido Crear receta")
+        mis_categorias = mostrar_categorias(ruta_base)
+        index_categoria = int(input("Elige una categoría: ")) - 1
+        ruta_categoria = mis_categorias[index_categoria]
+        nombre_receta = input("Elige un nombre para la nueva receta: ")
+        contenido_receta = input("Escribe el contenido de la nueva receta (ingredientes, preparación): ")
+        ruta_nueva_receta = Path(ruta_categoria, nombre_receta + ".txt")
+        ruta_nueva_receta.write_text(contenido_receta)
+        print(f"Receta '{nombre_receta}' creada exitosamente en la categoría '{ruta_categoria.name}'.")
+                      
     elif opcion_menu == 3:
-        print("Has elegido Crear categoría")
+        nombre_categoria = input("Elige un nombre para la nueva categoría: ")
+        ruta_nueva_categoria = Path(ruta_base, nombre_categoria)
+        ruta_nueva_categoria.mkdir()
+        print(f"Categoría '{nombre_categoria}' creada exitosamente.")
+
     elif opcion_menu == 4:
-        print("Has elegido Eliminar receta")
+        mis_categorias = mostrar_categorias(ruta_base)
+        index_categoria = int(input("Elige una categoría: ")) - 1
+        ruta_categoria = mis_categorias[index_categoria]
+        mis_recetas = mostrar_recetas(ruta_categoria)
+        index_receta = int(input("Elige una receta: ")) - 1
+        ruta_receta = mis_recetas[index_receta]
+        ruta_receta.unlink()
+        print(f"Receta '{ruta_receta.name}' eliminada exitosamente de la categoría '{ruta_categoria.name}'.")
+
     elif opcion_menu == 5:
-        print("Has elegido Eliminar categoría")
+        mis_categorias = mostrar_categorias(ruta_base)
+        index_categoria = int(input("Elige una categoría: ")) - 1
+        ruta_categoria = mis_categorias[index_categoria]
+        ruta_categoria.rmdir()
+        print(f"Categoría '{ruta_categoria.name}' eliminada exitosamente.")
+    
     elif opcion_menu == 6:
         print("Has elegido Finalizar")
         break
     input("Presiona una tecla para continuar")
-
-
-
-# Gestión de carpetas
-
-
-
-
-
-
-
-
-# Gestión de archivos
