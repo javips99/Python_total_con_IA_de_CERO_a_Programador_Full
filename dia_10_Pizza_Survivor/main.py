@@ -64,9 +64,12 @@ perro_img = pygame.image.load("perro.png")  # Cargar la imagen del perro
 perro_img = pygame.transform.scale(perro_img, (54, 64))
 velocidad_perro = 0.2 
 
-# Puntuaje
+# Puntuaje y tiempo
 puntuaje = 0
 fuente = pygame.font.Font(None, 36)  # Fuente para mostrar el puntuaje
+tiempo_inicio = pygame.time.get_ticks()  # Tiempo de inicio del juego
+tiempo_final = None
+estado_juego = "jugando"
 
 
 
@@ -112,6 +115,18 @@ def corazon(x, y):
 def reproducir_sonido(sonido):
     if sonido_disponible and sonido is not None:
         sonido.play()
+
+def formatear_tiempo(tiempo_ms):
+    segundos_totales = tiempo_ms // 1000
+    minutos = segundos_totales // 60
+    segundos = segundos_totales % 60
+    return f"{minutos}:{segundos:02d}"
+
+def obtener_tiempo_sobrevivido(ahora):
+    if tiempo_final is not None:
+        return tiempo_final - tiempo_inicio
+
+    return ahora - tiempo_inicio
 
 def obtener_perro_mas_cercano(origen_x, origen_y, lista_perros):
     if not lista_perros:
@@ -195,7 +210,7 @@ def detectar_colisiones():
     pizzas = pizzas_sobrevivientes
 
 def detectar_colisiones_con_repartidor(ahora):
-    global perros, vidas_repartidor, inmunidad_hasta
+    global perros, vidas_repartidor, inmunidad_hasta, estado_juego, tiempo_final
 
     perros_sobrevivientes = []
     repartidor_centro_x = repartidor_x + repartidor_img.get_width() / 2
@@ -218,6 +233,12 @@ def detectar_colisiones_con_repartidor(ahora):
                 vidas_repartidor = max(0, vidas_repartidor - 1)
                 inmunidad_hasta = ahora + intervalo_inmunidad
                 reproducir_sonido(sonido_vida_perdida)
+
+                if vidas_repartidor == 0 and estado_juego != "terminado":
+                    estado_juego = "terminado"
+                    tiempo_final = ahora
+                    if sonido_disponible:
+                        pygame.mixer.music.stop()
                 continue
 
         perros_sobrevivientes.append(perro_actual)
@@ -231,6 +252,74 @@ def dibujar_vidas():
 def dibujar_puntuaje():
     texto_puntuaje = fuente.render(f"Puntuaje: {puntuaje}", True, (255, 255, 255))
     pantalla.blit(texto_puntuaje, (600, 10))
+
+def dibujar_cronometro(ahora):
+    tiempo_sobrevivido = obtener_tiempo_sobrevivido(ahora)
+    texto_cronometro = fuente.render(f"Tiempo: {formatear_tiempo(tiempo_sobrevivido)}", True, (255, 255, 255))
+    rectangulo = texto_cronometro.get_rect(midtop=(400, 10))
+    pantalla.blit(texto_cronometro, rectangulo)
+
+def dibujar_pantalla_fin():
+    texto_game_over = pygame.font.Font(None, 88).render("GAME OVER", True, (255, 0, 0))
+    texto_game_over_rect = texto_game_over.get_rect(center=(400, 220))
+
+    texto_puntaje_final = fuente.render(f"Puntaje final: {puntuaje}", True, (255, 255, 255))
+    texto_puntaje_final_rect = texto_puntaje_final.get_rect(center=(400, 350))
+
+    tiempo_sobrevivido = obtener_tiempo_sobrevivido(tiempo_final if tiempo_final is not None else pygame.time.get_ticks())
+    texto_tiempo_final = fuente.render(f"Tiempo sobrevivido: {formatear_tiempo(tiempo_sobrevivido)}", True, (255, 255, 255))
+    texto_tiempo_final_rect = texto_tiempo_final.get_rect(center=(400, 390))
+
+    pantalla.blit(fondo, (0, 0))
+    pantalla.blit(texto_game_over, texto_game_over_rect)
+    pantalla.blit(texto_puntaje_final, texto_puntaje_final_rect)
+    pantalla.blit(texto_tiempo_final, texto_tiempo_final_rect)
+
+
+def actualizar_juego(ahora):
+    global repartidor_x, repartidor_y, ultimo_spawn_perro, ultimo_disparo
+
+    if ahora - ultimo_spawn_perro >= intervalo_spawn_perro:
+        perros.append(crear_perro())
+        ultimo_spawn_perro = ahora
+
+    if ahora - ultimo_disparo >= intervalo_disparo:
+        perro_mas_cercano = obtener_perro_mas_cercano(repartidor_x, repartidor_y, perros)
+        if perro_mas_cercano is not None:
+            lanzar_pizza(repartidor_x, repartidor_y, perro_mas_cercano)
+        ultimo_disparo = ahora
+
+    for perro_actual in perros:
+        perro_actual["prev_x"] = perro_actual["x"]
+        perro_actual["prev_y"] = perro_actual["y"]
+        dx = repartidor_x - perro_actual["x"]
+        dy = repartidor_y - perro_actual["y"]
+        distancia = (dx**2 + dy**2) ** 0.5
+
+        if distancia > 0:
+            perro_actual["x"] += (dx / distancia) * velocidad_perro
+            perro_actual["y"] += (dy / distancia) * velocidad_perro
+
+    actualizar_pizzas()
+    detectar_colisiones()
+    detectar_colisiones_con_repartidor(ahora)
+
+
+def dibujar_juego(ahora):
+    pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
+
+    if ahora >= inmunidad_hasta or (ahora // intervalo_parpadeo) % 2 == 0:
+        repartidor(repartidor_x, repartidor_y)
+
+    for perro_actual in perros:
+        perro(perro_actual["x"], perro_actual["y"])
+
+    for pizza_actual in pizzas:
+        pizza(pizza_actual["x"], pizza_actual["y"])
+
+    dibujar_vidas()
+    dibujar_puntuaje()
+    dibujar_cronometro(ahora)
 
 
 # Loop del juego
@@ -260,60 +349,24 @@ while se_ejecuta:
             if evento.key in (pygame.K_UP, pygame.K_DOWN):  
                 repartidor_cambio_y = 0  
 
-    # Actualizar la posición
-    repartidor_x += repartidor_cambio_x   
-    repartidor_y += repartidor_cambio_y
+    if estado_juego == "jugando":
+        repartidor_x += repartidor_cambio_x   
+        repartidor_y += repartidor_cambio_y
 
-    # Limitar el movimiento a la izquierda y derecha
-    if repartidor_x < 0:  
-        repartidor_x = 0
-    elif repartidor_x > 736: 
-        repartidor_x = 736
+        if repartidor_x < 0:  
+            repartidor_x = 0
+        elif repartidor_x > 736: 
+            repartidor_x = 736
 
-    # Limitar el movimiento hacia arriba y abajo     
-    if repartidor_y < 0:  
-        repartidor_y = 0
-    elif repartidor_y > 500:  
-        repartidor_y = 500
+        if repartidor_y < 0:  
+            repartidor_y = 0
+        elif repartidor_y > 500:  
+            repartidor_y = 500
 
-    if ahora - ultimo_spawn_perro >= intervalo_spawn_perro:
-        perros.append(crear_perro())
-        ultimo_spawn_perro = ahora
-
-    if ahora - ultimo_disparo >= intervalo_disparo:
-        perro_mas_cercano = obtener_perro_mas_cercano(repartidor_x, repartidor_y, perros)
-        if perro_mas_cercano is not None:
-            lanzar_pizza(repartidor_x, repartidor_y, perro_mas_cercano)
-        ultimo_disparo = ahora
-
-    # Movimiento del perro
-    for perro_actual in perros:
-        perro_actual["prev_x"] = perro_actual["x"]
-        perro_actual["prev_y"] = perro_actual["y"]
-        dx = repartidor_x - perro_actual["x"]
-        dy = repartidor_y - perro_actual["y"]
-        distancia = (dx**2 + dy**2) ** 0.5
-
-        if distancia > 0:
-            perro_actual["x"] += (dx / distancia) * velocidad_perro
-            perro_actual["y"] += (dy / distancia) * velocidad_perro
-
-    actualizar_pizzas()
-    detectar_colisiones()
-    detectar_colisiones_con_repartidor(ahora)
-
-    pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
-    if ahora >= inmunidad_hasta or (ahora // intervalo_parpadeo) % 2 == 0:
-        repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
-
-    for perro_actual in perros:
-        perro(perro_actual["x"], perro_actual["y"])
-
-    for pizza_actual in pizzas:
-        pizza(pizza_actual["x"], pizza_actual["y"])
-
-    dibujar_vidas()
-    dibujar_puntuaje()
+        actualizar_juego(ahora)
+        dibujar_juego(ahora)
+    else:
+        dibujar_pantalla_fin()
 
     # Actualizar la pantalla
     pygame.display.update() 
