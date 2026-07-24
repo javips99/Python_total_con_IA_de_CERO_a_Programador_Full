@@ -120,6 +120,32 @@ def actualizar_pizzas():
     for pizza_actual in pizzas_a_eliminar:
         pizzas.remove(pizza_actual)
 
+def detectar_colisiones():
+    global perros, pizzas
+
+    pizzas_sobrevivientes = []
+    perros_sobrevivientes = list(perros)
+
+    for pizza_actual in pizzas:
+        pizza_chocada = False
+
+        for perro_actual in perros_sobrevivientes[:]: # Iterar sobre una copia de la lista para evitar problemas al eliminar elementos
+            dx = pizza_actual["x"] + pizza_img.get_width() / 2 - (perro_actual["x"] + perro_img.get_width() / 2)
+            dy = pizza_actual["y"] + pizza_img.get_height() / 2 - (perro_actual["y"] + perro_img.get_height() / 2)
+            distancia = math.hypot(dx, dy)
+
+            if distancia < 30:
+                perros_sobrevivientes.remove(perro_actual)
+                pizza_chocada = True
+                break
+
+        if not pizza_chocada:
+            pizzas_sobrevivientes.append(pizza_actual)
+
+    perros = perros_sobrevivientes
+    pizzas = pizzas_sobrevivientes
+    
+
 # Loop del juego
 se_ejecuta = True
 
@@ -184,8 +210,7 @@ while se_ejecuta:
             perro_actual["y"] += (dy / distancia) * velocidad_perro
 
     actualizar_pizzas()
-
-
+    detectar_colisiones()
 
     pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
     repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
