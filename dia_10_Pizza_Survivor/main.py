@@ -17,6 +17,9 @@ pygame.display.set_icon(icono)  # Establecer el ícono de la ventana
 fondo = pygame.image.load("fondo.png")  # Cargar la imagen de fondo
 fondo = pygame.transform.scale(fondo, (800, 600))  # Escalar la imagen de fondo al tamaño de la ventana
 
+corazon_img = pygame.image.load("corazon.png")
+corazon_img = pygame.transform.scale(corazon_img, (32, 32))
+
 
 # Repartidor de pizzas
 repartidor_img = pygame.image.load("repartidor.png")  # Cargar la imagen del repartidor
@@ -53,10 +56,14 @@ perros = [crear_perro()]
 
 pizzas = []
 ultimo_disparo = pygame.time.get_ticks()
-intervalo_disparo = 1000
+intervalo_disparo = 2500
 velocidad_pizza = 0.6
 ultimo_spawn_perro = pygame.time.get_ticks()
-intervalo_spawn_perro = 3000
+intervalo_spawn_perro = 2000
+vidas_repartidor = 3
+inmunidad_hasta = 0
+intervalo_inmunidad = 1000
+intervalo_parpadeo = 150
 
 
 def repartidor(x, y):
@@ -67,6 +74,9 @@ def perro(x, y):
 
 def pizza(x, y):
     pantalla.blit(pizza_img, (x, y))
+
+def corazon(x, y):
+    pantalla.blit(corazon_img, (x, y))
 
 def obtener_perro_mas_cercano(origen_x, origen_y, lista_perros):
     if not lista_perros:
@@ -144,6 +154,39 @@ def detectar_colisiones():
 
     perros = perros_sobrevivientes
     pizzas = pizzas_sobrevivientes
+
+def detectar_colisiones_con_repartidor(ahora):
+    global perros, vidas_repartidor, inmunidad_hasta
+
+    perros_sobrevivientes = []
+    repartidor_centro_x = repartidor_x + repartidor_img.get_width() / 2
+    repartidor_centro_y = repartidor_y + repartidor_img.get_height() / 2
+    radio_repartidor = 30
+    radio_perro = 22
+
+    for perro_actual in perros:
+        perro_centro_x = perro_actual["x"] + perro_img.get_width() / 2
+        perro_centro_y = perro_actual["y"] + perro_img.get_height() / 2
+        dx = perro_centro_x - repartidor_centro_x
+        dy = perro_centro_y - repartidor_centro_y
+        distancia = math.hypot(dx, dy)
+
+        if distancia < radio_repartidor + radio_perro:
+            perro_actual["x"] = perro_actual.get("prev_x", perro_actual["x"])
+            perro_actual["y"] = perro_actual.get("prev_y", perro_actual["y"])
+
+            if ahora >= inmunidad_hasta:
+                vidas_repartidor = max(0, vidas_repartidor - 1)
+                inmunidad_hasta = ahora + intervalo_inmunidad
+                continue
+
+        perros_sobrevivientes.append(perro_actual)
+
+    perros = perros_sobrevivientes
+
+def dibujar_vidas():
+    for indice in range(vidas_repartidor):
+        corazon(10 + indice * 36, 10)
     
 
 # Loop del juego
@@ -201,6 +244,8 @@ while se_ejecuta:
 
     # Movimiento del perro
     for perro_actual in perros:
+        perro_actual["prev_x"] = perro_actual["x"]
+        perro_actual["prev_y"] = perro_actual["y"]
         dx = repartidor_x - perro_actual["x"]
         dy = repartidor_y - perro_actual["y"]
         distancia = (dx**2 + dy**2) ** 0.5
@@ -211,15 +256,19 @@ while se_ejecuta:
 
     actualizar_pizzas()
     detectar_colisiones()
+    detectar_colisiones_con_repartidor(ahora)
 
     pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
-    repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
+    if ahora >= inmunidad_hasta or (ahora // intervalo_parpadeo) % 2 == 0:
+        repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
 
     for perro_actual in perros:
         perro(perro_actual["x"], perro_actual["y"])
 
     for pizza_actual in pizzas:
         pizza(pizza_actual["x"], pizza_actual["y"])
+
+    dibujar_vidas()
 
 
     # Actualizar la pantalla
