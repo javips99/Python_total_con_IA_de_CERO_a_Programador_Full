@@ -57,7 +57,19 @@ while se_ejecuta:
 
     # Actualizar la posición
     repartidor_x += repartidor_cambio_x   
-    repartidor_y += repartidor_cambio_y 
+    repartidor_y += repartidor_cambio_y
+
+    # Limitar el movimiento a la izquierda y derecha
+    if repartidor_x < 0:  
+        repartidor_x = 0
+    elif repartidor_x > 736: 
+        repartidor_x = 736
+        
+    # Limitar el movimiento hacia arriba y abajo     
+    if repartidor_y < 0:  
+        repartidor_y = 0
+    elif repartidor_y > 500:  
+        repartidor_y = 500
 
     pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
     repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
