@@ -20,7 +20,10 @@ fondo = pygame.transform.scale(fondo, (800, 600))  # Escalar la imagen de fondo 
 repartidor_img = pygame.image.load("repartidor.png")  # Cargar la imagen del repartidor
 repartidor_img = pygame.transform.scale(repartidor_img, (64, 100)) # Tamaño del repartidor
 repartidor_x = 368  # Posición inicial en el eje X
-repartidor_y = 440  # Posición inicial en el eje Y
+repartidor_y = 440  
+repartidor_cambio_x = 0  # Cambio en la posición del repartidor en el eje X
+repartidor_cambio_y = 0  
+velocidad_repartidor = 1  # Velocidad del movimiento repartidor
 
 def repartidor(x, y):
     pantalla.blit(repartidor_img, (x, y))  # Dibujar el repartidor en la pantalla
@@ -35,6 +38,26 @@ while se_ejecuta:
 
         if evento.type == pygame.QUIT:
             se_ejecuta = False
+
+        if evento.type == pygame.KEYDOWN:  
+            if evento.key == pygame.K_LEFT:  
+                repartidor_cambio_x = -velocidad_repartidor  
+            if evento.key == pygame.K_RIGHT:  
+                repartidor_cambio_x = velocidad_repartidor  
+            if evento.key == pygame.K_UP:  
+                repartidor_cambio_y = -velocidad_repartidor  
+            if evento.key == pygame.K_DOWN:  
+                repartidor_cambio_y = velocidad_repartidor  
+
+        if evento.type == pygame.KEYUP:  # Si se suelta una tecla
+            if evento.key in (pygame.K_LEFT, pygame.K_RIGHT):  
+                repartidor_cambio_x = 0  
+            if evento.key in (pygame.K_UP, pygame.K_DOWN):  
+                repartidor_cambio_y = 0  
+
+    # Actualizar la posición
+    repartidor_x += repartidor_cambio_x   
+    repartidor_y += repartidor_cambio_y 
 
     pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
     repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
