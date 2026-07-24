@@ -36,14 +36,27 @@ perro_img = pygame.image.load("perro.png")  # Cargar la imagen del perro
 perro_img = pygame.transform.scale(perro_img, (54, 64))
 velocidad_perro = 0.4 
 
-perros = [
-    {"x": random.randint(0, 746), "y": 0}
-]
+def crear_perro():
+    borde = random.choice(["arriba", "abajo", "izquierda", "derecha"])
+
+    if borde == "arriba":
+        return {"x": random.randint(0, 800 - perro_img.get_width()), "y": 0}
+    if borde == "abajo":
+        return {"x": random.randint(0, 800 - perro_img.get_width()), "y": 600 - perro_img.get_height()}
+    if borde == "izquierda":
+        return {"x": 0, "y": random.randint(0, 600 - perro_img.get_height())}
+
+    return {"x": 800 - perro_img.get_width(), "y": random.randint(0, 600 - perro_img.get_height())}
+
+
+perros = [crear_perro()]
 
 pizzas = []
 ultimo_disparo = pygame.time.get_ticks()
 intervalo_disparo = 1000
 velocidad_pizza = 0.6
+ultimo_spawn_perro = pygame.time.get_ticks()
+intervalo_spawn_perro = 3000
 
 
 def repartidor(x, y):
@@ -149,6 +162,10 @@ while se_ejecuta:
         repartidor_y = 0
     elif repartidor_y > 500:  
         repartidor_y = 500
+
+    if ahora - ultimo_spawn_perro >= intervalo_spawn_perro:
+        perros.append(crear_perro())
+        ultimo_spawn_perro = ahora
 
     if ahora - ultimo_disparo >= intervalo_disparo:
         perro_mas_cercano = obtener_perro_mas_cercano(repartidor_x, repartidor_y, perros)
