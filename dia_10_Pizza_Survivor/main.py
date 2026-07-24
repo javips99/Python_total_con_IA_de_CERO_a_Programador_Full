@@ -7,6 +7,12 @@ import random
 
 pygame.init()
 
+try:
+    pygame.mixer.init()
+    sonido_disponible = True
+except pygame.error:
+    sonido_disponible = False
+
 # Crear la ventana del juego
 pantalla = pygame.display.set_mode((800, 600))
 pygame.display.set_caption("Pizza Survivor")  # Título de la ventana
@@ -20,6 +26,25 @@ fondo = pygame.transform.scale(fondo, (800, 600))  # Escalar la imagen de fondo 
 corazon_img = pygame.image.load("corazon.png")
 corazon_img = pygame.transform.scale(corazon_img, (32, 32))
 
+# Sonidos
+
+if sonido_disponible:
+    pygame.mixer.music.load("MusicaFondo.mp3")
+    pygame.mixer.music.set_volume(0.2)
+    pygame.mixer.music.play(-1)
+
+    sonido_disparo = pygame.mixer.Sound("disparo.mp3")
+    sonido_golpe = pygame.mixer.Sound("golpe.mp3")
+    sonido_vida_perdida = pygame.mixer.Sound("vida_perdida.mp3")
+
+    sonido_disparo.set_volume(0.8)
+    sonido_golpe.set_volume(0.8)
+    sonido_vida_perdida.set_volume(0.8)
+else:
+    sonido_disparo = None
+    sonido_golpe = None
+    sonido_vida_perdida = None
+
 
 # Repartidor de pizzas
 repartidor_img = pygame.image.load("repartidor.png")  # Cargar la imagen del repartidor
@@ -28,7 +53,7 @@ repartidor_x = 368  # Posición inicial en el eje X
 repartidor_y = 440  
 repartidor_cambio_x = 0  # Cambio en la posición del repartidor en el eje X
 repartidor_cambio_y = 0  
-velocidad_repartidor = 1  # Velocidad del movimiento repartidor
+velocidad_repartidor = 0.8  # Velocidad del movimiento repartidor
 
 pizza_img = pygame.image.load("pizza.png")
 pizza_img = pygame.transform.scale(pizza_img, (32, 32))
@@ -37,7 +62,13 @@ pizza_img = pygame.transform.scale(pizza_img, (32, 32))
 # Perro enemigo
 perro_img = pygame.image.load("perro.png")  # Cargar la imagen del perro
 perro_img = pygame.transform.scale(perro_img, (54, 64))
-velocidad_perro = 0.4 
+velocidad_perro = 0.2 
+
+# Puntuaje
+puntuaje = 0
+fuente = pygame.font.Font(None, 36)  # Fuente para mostrar el puntuaje
+
+
 
 def crear_perro():
     borde = random.choice(["arriba", "abajo", "izquierda", "derecha"])
@@ -78,6 +109,10 @@ def pizza(x, y):
 def corazon(x, y):
     pantalla.blit(corazon_img, (x, y))
 
+def reproducir_sonido(sonido):
+    if sonido_disponible and sonido is not None:
+        sonido.play()
+
 def obtener_perro_mas_cercano(origen_x, origen_y, lista_perros):
     if not lista_perros:
         return None
@@ -112,6 +147,8 @@ def lanzar_pizza(origen_x, origen_y, objetivo):
         }
     )
 
+    reproducir_sonido(sonido_disparo)
+
 def actualizar_pizzas():
     pizzas_a_eliminar = []
 
@@ -131,7 +168,7 @@ def actualizar_pizzas():
         pizzas.remove(pizza_actual)
 
 def detectar_colisiones():
-    global perros, pizzas
+    global perros, pizzas, puntuaje
 
     pizzas_sobrevivientes = []
     perros_sobrevivientes = list(perros)
@@ -145,7 +182,9 @@ def detectar_colisiones():
             distancia = math.hypot(dx, dy)
 
             if distancia < 30:
+                puntuaje += 10
                 perros_sobrevivientes.remove(perro_actual)
+                reproducir_sonido(sonido_golpe)
                 pizza_chocada = True
                 break
 
@@ -178,6 +217,7 @@ def detectar_colisiones_con_repartidor(ahora):
             if ahora >= inmunidad_hasta:
                 vidas_repartidor = max(0, vidas_repartidor - 1)
                 inmunidad_hasta = ahora + intervalo_inmunidad
+                reproducir_sonido(sonido_vida_perdida)
                 continue
 
         perros_sobrevivientes.append(perro_actual)
@@ -188,6 +228,10 @@ def dibujar_vidas():
     for indice in range(vidas_repartidor):
         corazon(10 + indice * 36, 10)
     
+def dibujar_puntuaje():
+    texto_puntuaje = fuente.render(f"Puntuaje: {puntuaje}", True, (255, 255, 255))
+    pantalla.blit(texto_puntuaje, (600, 10))
+
 
 # Loop del juego
 se_ejecuta = True
@@ -269,7 +313,7 @@ while se_ejecuta:
         pizza(pizza_actual["x"], pizza_actual["y"])
 
     dibujar_vidas()
-
+    dibujar_puntuaje()
 
     # Actualizar la pantalla
     pygame.display.update() 
