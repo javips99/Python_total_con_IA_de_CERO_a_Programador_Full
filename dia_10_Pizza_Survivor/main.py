@@ -1,5 +1,5 @@
 import pygame
-
+import random
 
 # Initialize Pygame
 
@@ -25,9 +25,20 @@ repartidor_cambio_x = 0  # Cambio en la posición del repartidor en el eje X
 repartidor_cambio_y = 0  
 velocidad_repartidor = 1  # Velocidad del movimiento repartidor
 
+
+# Perro enemigo
+perro_img = pygame.image.load("perro.png")  # Cargar la imagen del perro
+perro_img = pygame.transform.scale(perro_img, (54, 64))
+perro_x = random.randint(0, 746)
+perro_y = 0
+velocidad_perro = 0.4 
+
+
 def repartidor(x, y):
     pantalla.blit(repartidor_img, (x, y))  # Dibujar el repartidor en la pantalla
 
+def perro(x, y):
+    pantalla.blit(perro_img, (x, y))  
 
 # Loop del juego
 se_ejecuta = True
@@ -64,15 +75,29 @@ while se_ejecuta:
         repartidor_x = 0
     elif repartidor_x > 736: 
         repartidor_x = 736
-        
+
     # Limitar el movimiento hacia arriba y abajo     
     if repartidor_y < 0:  
         repartidor_y = 0
     elif repartidor_y > 500:  
         repartidor_y = 500
 
+    # Movimiento del perro
+    dx = repartidor_x - perro_x
+    dy = repartidor_y - perro_y
+    distancia = (dx**2 + dy**2) ** 0.5
+
+    if distancia > 0:
+        perro_x += (dx / distancia) * velocidad_perro
+        perro_y += (dy / distancia) * velocidad_perro
+
+
+
     pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
     repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
+    perro(perro_x, perro_y)
+
+
     # Actualizar la pantalla
     pygame.display.update() 
 
