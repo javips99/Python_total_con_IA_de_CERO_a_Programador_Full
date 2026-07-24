@@ -1,3 +1,5 @@
+import math
+
 import pygame
 import random
 
@@ -25,13 +27,23 @@ repartidor_cambio_x = 0  # Cambio en la posición del repartidor en el eje X
 repartidor_cambio_y = 0  
 velocidad_repartidor = 1  # Velocidad del movimiento repartidor
 
+pizza_img = pygame.image.load("pizza.png")
+pizza_img = pygame.transform.scale(pizza_img, (32, 32))
+
 
 # Perro enemigo
 perro_img = pygame.image.load("perro.png")  # Cargar la imagen del perro
 perro_img = pygame.transform.scale(perro_img, (54, 64))
-perro_x = random.randint(0, 746)
-perro_y = 0
 velocidad_perro = 0.4 
+
+perros = [
+    {"x": random.randint(0, 746), "y": 0}
+]
+
+pizzas = []
+ultimo_disparo = pygame.time.get_ticks()
+intervalo_disparo = 1000
+velocidad_pizza = 0.6
 
 
 def repartidor(x, y):
@@ -40,10 +52,66 @@ def repartidor(x, y):
 def perro(x, y):
     pantalla.blit(perro_img, (x, y))  
 
+def pizza(x, y):
+    pantalla.blit(pizza_img, (x, y))
+
+def obtener_perro_mas_cercano(origen_x, origen_y, lista_perros):
+    if not lista_perros:
+        return None
+
+    return min(
+        lista_perros,
+        key=lambda perro_actual: math.hypot(
+            origen_x - perro_actual["x"],
+            origen_y - perro_actual["y"],
+        ),
+    )
+
+def lanzar_pizza(origen_x, origen_y, objetivo):
+    origen_centro_x = origen_x + repartidor_img.get_width() / 2
+    origen_centro_y = origen_y + repartidor_img.get_height() / 2
+    objetivo_centro_x = objetivo["x"] + perro_img.get_width() / 2
+    objetivo_centro_y = objetivo["y"] + perro_img.get_height() / 2
+
+    dx = objetivo_centro_x - origen_centro_x
+    dy = objetivo_centro_y - origen_centro_y
+    distancia = math.hypot(dx, dy)
+
+    if distancia == 0:
+        return
+
+    pizzas.append(
+        {
+            "x": origen_centro_x - pizza_img.get_width() / 2,
+            "y": origen_centro_y - pizza_img.get_height() / 2,
+            "dx": (dx / distancia) * velocidad_pizza,
+            "dy": (dy / distancia) * velocidad_pizza,
+        }
+    )
+
+def actualizar_pizzas():
+    pizzas_a_eliminar = []
+
+    for pizza_actual in pizzas:
+        pizza_actual["x"] += pizza_actual["dx"]
+        pizza_actual["y"] += pizza_actual["dy"]
+
+        if (
+            pizza_actual["x"] < -pizza_img.get_width()
+            or pizza_actual["x"] > 800
+            or pizza_actual["y"] < -pizza_img.get_height()
+            or pizza_actual["y"] > 600
+        ):
+            pizzas_a_eliminar.append(pizza_actual)
+
+    for pizza_actual in pizzas_a_eliminar:
+        pizzas.remove(pizza_actual)
+
 # Loop del juego
 se_ejecuta = True
 
 while se_ejecuta:
+    ahora = pygame.time.get_ticks()
 
     for evento in pygame.event.get():
 
@@ -82,20 +150,34 @@ while se_ejecuta:
     elif repartidor_y > 500:  
         repartidor_y = 500
 
-    # Movimiento del perro
-    dx = repartidor_x - perro_x
-    dy = repartidor_y - perro_y
-    distancia = (dx**2 + dy**2) ** 0.5
+    if ahora - ultimo_disparo >= intervalo_disparo:
+        perro_mas_cercano = obtener_perro_mas_cercano(repartidor_x, repartidor_y, perros)
+        if perro_mas_cercano is not None:
+            lanzar_pizza(repartidor_x, repartidor_y, perro_mas_cercano)
+        ultimo_disparo = ahora
 
-    if distancia > 0:
-        perro_x += (dx / distancia) * velocidad_perro
-        perro_y += (dy / distancia) * velocidad_perro
+    # Movimiento del perro
+    for perro_actual in perros:
+        dx = repartidor_x - perro_actual["x"]
+        dy = repartidor_y - perro_actual["y"]
+        distancia = (dx**2 + dy**2) ** 0.5
+
+        if distancia > 0:
+            perro_actual["x"] += (dx / distancia) * velocidad_perro
+            perro_actual["y"] += (dy / distancia) * velocidad_perro
+
+    actualizar_pizzas()
 
 
 
     pantalla.blit(fondo, (0, 0))  # Dibujar el fondo en la pantalla
     repartidor(repartidor_x, repartidor_y)  # Dibujar el repartidor en la pantalla
-    perro(perro_x, perro_y)
+
+    for perro_actual in perros:
+        perro(perro_actual["x"], perro_actual["y"])
+
+    for pizza_actual in pizzas:
+        pizza(pizza_actual["x"], pizza_actual["y"])
 
 
     # Actualizar la pantalla
