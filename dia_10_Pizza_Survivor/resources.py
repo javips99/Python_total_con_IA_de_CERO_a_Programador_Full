@@ -1,11 +1,27 @@
 """Carga centralizada de imágenes y sonidos del juego."""
 
+from pathlib import Path
+
 import pygame
+
+BASE_DIR = Path(__file__).resolve().parent
+RECURSOS_DIR = BASE_DIR / "recursos"
+
+
+def obtener_ruta_recurso(nombre_archivo):
+    """Devuelve la ruta absoluta del recurso, buscando primero en la carpeta del juego y luego en recursos/."""
+    rutas_posibles = [BASE_DIR / nombre_archivo, RECURSOS_DIR / nombre_archivo]
+
+    for ruta in rutas_posibles:
+        if ruta.exists():
+            return ruta
+
+    return RECURSOS_DIR / nombre_archivo
 
 
 def cargar_imagen(ruta, tamaño=None):
     # Carga una imagen y, si hace falta, la escala al tamaño pedido.
-    imagen = pygame.image.load(ruta)
+    imagen = pygame.image.load(str(obtener_ruta_recurso(ruta)))
     if tamaño is not None:
         imagen = pygame.transform.scale(imagen, tamaño)
     return imagen
@@ -25,7 +41,7 @@ def cargar_imagenes():
 
 def cargar_sonido(ruta, volumen):
     # Carga un efecto de sonido y aplica su volumen.
-    sonido = pygame.mixer.Sound(ruta)
+    sonido = pygame.mixer.Sound(str(obtener_ruta_recurso(ruta)))
     sonido.set_volume(volumen)
     return sonido
 
@@ -48,6 +64,6 @@ def cargar_sonidos(sonido_disponible):
 
 def iniciar_musica_fondo(volumen=0.2):
     # Inicia la música del juego en bucle.
-    pygame.mixer.music.load("MusicaFondo.mp3")
+    pygame.mixer.music.load(str(obtener_ruta_recurso("MusicaFondo.mp3")))
     pygame.mixer.music.set_volume(volumen)
     pygame.mixer.music.play(-1)
