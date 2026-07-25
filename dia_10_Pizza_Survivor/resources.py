@@ -9,7 +9,7 @@ RECURSOS_DIR = BASE_DIR / "recursos"
 
 
 def obtener_ruta_recurso(nombre_archivo):
-    """Devuelve la ruta absoluta del recurso, buscando primero en la carpeta del juego y luego en recursos/."""
+    # Devuelve la ruta absoluta del recurso, buscando primero en la carpeta del juego y luego en recursos/.
     rutas_posibles = [BASE_DIR / nombre_archivo, RECURSOS_DIR / nombre_archivo]
 
     for ruta in rutas_posibles:
@@ -36,6 +36,7 @@ def cargar_imagenes():
         "repartidor": cargar_imagen("repartidor.png", (64, 100)),
         "pizza": cargar_imagen("pizza.png", (32, 32)),
         "perro": cargar_imagen("perro.png", (54, 64)),
+        "gato": cargar_imagen("gato.png", (54, 64)),
     }
 
 
