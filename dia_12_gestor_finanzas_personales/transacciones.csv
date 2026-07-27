@@ -1,0 +1,9 @@
+descripcion,monto,importe,fecha,categoria,tipo
+Alquiler,320000.0,320000.0,2026-05-01,Hogar,Gasto
+Verdulería,18500.0,18500.0,2026-05-06,Comidas,Gasto
+Gimnasio,25000.0,25000.0,2026-05-07,Salud,Gasto
+Uber,8200.0,8200.0,2026-05-09,Transporte,Gasto
+Honorarios,180000.0,180000.0,2026-05-11,Otros,Ingreso
+Librería,14000.0,14000.0,2026-05-13,Ocio,Gasto
+Peluquería,22000.0,22000.0,2026-05-16,Otros,Gasto
+Supermercado,76000.0,76000.0,2026-05-19,Comidas,Gasto
