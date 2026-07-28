@@ -8,41 +8,144 @@ ARCHIVO_DATOS = os.path.join(BASE_DIR, "transacciones.csv")
 categorias = ["Comidas", "Transporte", "Entretenimiento", "Servicios", "Otros"]
 
 
+class Transaccion:
+    def __init__(self, descripcion: str, monto: float, fecha: date, categoria: str, tipo: str):
+        self.descripcion = str(descripcion)
+        self.monto = float(monto)
+        self.fecha = fecha if isinstance(fecha, date) else date.fromisoformat(str(fecha).strip())
+        self.categoria = str(categoria)
+        self.tipo = str(tipo)
+
+    def es_gasto(self) -> bool:
+        return self.tipo == "Gasto"
+
+    def es_ingreso(self) -> bool:
+        return self.tipo == "Ingreso"
+
+    def a_diccionario(self) -> dict:
+        return {
+            "descripcion": self.descripcion,
+            "monto": self.monto,
+            "fecha": self.fecha,
+            "categoria": self.categoria,
+            "tipo": self.tipo
+        }
+
+
+class Cartera:
+    def __init__(self, transacciones: list[Transaccion] = None):
+        self.transacciones = list(transacciones) if transacciones is not None else []
+
+    def agregar_transaccion(self, transaccion: Transaccion):
+        self.transacciones.append(transaccion)
+
+    def total_ingresos(self) -> float:
+        return sum(t.monto for t in self.transacciones if t.es_ingreso())
+
+    def total_gastos(self) -> float:
+        return sum(t.monto for t in self.transacciones if t.es_gasto())
+
+    def balance(self) -> float:
+        return self.total_ingresos() - self.total_gastos()
+
+    def gasto_promedio(self) -> float:
+        gastos = [t.monto for t in self.transacciones if t.es_gasto()]
+        return sum(gastos) / len(gastos) if gastos else 0.0
+
+    def filtrar(self, categorias_sel: list[str], fecha_desde: date, fecha_hasta: date) -> "Cartera":
+        filtradas = [
+            t for t in self.transacciones
+            if t.categoria in categorias_sel and fecha_desde <= t.fecha <= fecha_hasta
+        ]
+        return Cartera(filtradas)
+
+    def gastos_por_categoria_df(self) -> pd.DataFrame:
+        gastos = [t for t in self.transacciones if t.es_gasto()]
+        gastos_por_categoria = {}
+        for t in gastos:
+            gastos_por_categoria[t.categoria] = gastos_por_categoria.get(t.categoria, 0.0) + t.monto
+        return pd.DataFrame(list(gastos_por_categoria.items()), columns=["Categoría", "Total"])
+
+    def gastos_por_fecha_df(self) -> pd.DataFrame:
+        gastos = [t for t in self.transacciones if t.es_gasto()]
+        gastos_por_fecha = {}
+        for t in gastos:
+            gastos_por_fecha[t.fecha] = gastos_por_fecha.get(t.fecha, 0.0) + t.monto
+        return pd.DataFrame(list(gastos_por_fecha.items()), columns=["Fecha", "Total"])
+
+    def tiene_gastos(self) -> bool:
+        return any(t.es_gasto() for t in self.transacciones)
+
+    def esta_vacia(self) -> bool:
+        return len(self.transacciones) == 0
+
+    def rango_fechas(self) -> tuple[date, date]:
+        if self.transacciones:
+            fechas = [t.fecha for t in self.transacciones]
+            return min(fechas), max(fechas)
+        hoy = date.today()
+        return hoy, hoy
+
+    def a_dataframe(self) -> pd.DataFrame:
+        if not self.transacciones:
+            return pd.DataFrame(columns=["descripcion", "monto", "fecha", "categoria", "tipo"])
+        return pd.DataFrame([t.a_diccionario() for t in self.transacciones])
+
+    @classmethod
+    def cargar_csv(cls, filepath: str) -> "Cartera":
+        try:
+            df = pd.read_csv(filepath)
+            transacciones = []
+            for _, row in df.iterrows():
+                monto_val = float(row["monto"])
+                fecha_val = date.fromisoformat(str(row["fecha"]).strip())
+                t = Transaccion(
+                    descripcion=str(row["descripcion"]),
+                    monto=monto_val,
+                    fecha=fecha_val,
+                    categoria=str(row["categoria"]),
+                    tipo=str(row["tipo"])
+                )
+                transacciones.append(t)
+            return cls(transacciones)
+        except Exception:
+            return cls([])
+
+    def guardar_csv(self, filepath: str):
+        df = self.a_dataframe()
+        df.to_csv(filepath, index=False)
+
+    def importar_desde_dataframe(self, df: pd.DataFrame) -> int:
+        contador = 0
+        for _, row in df.iterrows():
+            monto_val = float(row["monto"])
+            fecha_val = date.fromisoformat(str(row["fecha"]).strip())
+            t = Transaccion(
+                descripcion=str(row["descripcion"]),
+                monto=monto_val,
+                fecha=fecha_val,
+                categoria=str(row["categoria"]),
+                tipo=str(row["tipo"])
+            )
+            self.agregar_transaccion(t)
+            contador += 1
+        return contador
+
+
 def mostrar_titulo():
     st.title("Gestor de Finanzas Personales")
     st.write("Aplicación para gestionar tus finanzas personales")
     st.caption("Versión 1.0")
 
 
-def cargar_transacciones():
-    try:
-        df = pd.read_csv(ARCHIVO_DATOS)
-        transacciones = []
-        for _, row in df.iterrows():
-            monto_val = float(row["monto"])
-            fecha_val = date.fromisoformat(str(row["fecha"]).strip())
-            transacciones.append({
-                "descripcion": str(row["descripcion"]),
-                "monto": monto_val,
-                "importe": monto_val,
-                "fecha": fecha_val,
-                "categoria": str(row["categoria"]),
-                "tipo": str(row["tipo"])
-            })
-        return transacciones
-    except Exception:
-        return []
-
-
 def guardar_transacciones():
-    if "transacciones" in st.session_state:
-        df = pd.DataFrame(st.session_state.transacciones)
-        df.to_csv(ARCHIVO_DATOS, index=False)
+    if "cartera" in st.session_state:
+        st.session_state.cartera.guardar_csv(ARCHIVO_DATOS)
 
 
 def inicializar_estado():
-    if "transacciones" not in st.session_state:
-        st.session_state.transacciones = cargar_transacciones()
+    if "cartera" not in st.session_state:
+        st.session_state.cartera = Cartera.cargar_csv(ARCHIVO_DATOS)
 
 
 def mostrar_formulario():
@@ -56,14 +159,8 @@ def mostrar_formulario():
 
         if enviado:
             if descripcion and importe > 0:
-                st.session_state.transacciones.append({
-                    "descripcion": descripcion,
-                    "monto": importe,
-                    "importe": importe,
-                    "fecha": fecha,
-                    "categoria": categoria,
-                    "tipo": tipo
-                })
+                transaccion = Transaccion(descripcion, importe, fecha, categoria, tipo)
+                st.session_state.cartera.agregar_transaccion(transaccion)
                 st.success("Transacción agregada correctamente")
             else:
                 st.error("Debes completar todos los campos")
@@ -89,33 +186,14 @@ def importar_csv():
                     st.error("El archivo CSV no contiene las columnas esperadas: descripcion, monto, fecha, categoria, tipo")
                     return
 
-                contador = 0
-                for _, row in df.iterrows():
-                    monto_val = float(row["monto"])
-                    fecha_val = date.fromisoformat(str(row["fecha"]).strip())
-                    st.session_state.transacciones.append({
-                        "descripcion": str(row["descripcion"]),
-                        "monto": monto_val,
-                        "importe": monto_val,
-                        "fecha": fecha_val,
-                        "categoria": str(row["categoria"]),
-                        "tipo": str(row["tipo"])
-                    })
-                    contador += 1
-
+                contador = st.session_state.cartera.importar_desde_dataframe(df)
                 st.success(f"Se importaron {contador} transacciones correctamente.")
 
 
 def mostrar_filtros():
     categorias_sel = st.multiselect("Categorías", options=categorias, default=categorias)
 
-    if st.session_state.transacciones:
-        fechas = [t["fecha"] for t in st.session_state.transacciones]
-        min_fecha = min(fechas)
-        max_fecha = max(fechas)
-    else:
-        min_fecha = date.today()
-        max_fecha = date.today()
+    min_fecha, max_fecha = st.session_state.cartera.rango_fechas()
 
     fecha_desde = st.date_input("Desde", value=min_fecha)
     fecha_hasta = st.date_input("Hasta", value=max_fecha)
@@ -123,18 +201,11 @@ def mostrar_filtros():
     return categorias_sel, fecha_desde, fecha_hasta
 
 
-def filtrar_transacciones(transacciones, categorias_sel, fecha_desde, fecha_hasta):
-    return [
-        t for t in transacciones
-        if t["categoria"] in categorias_sel and fecha_desde <= t["fecha"] <= fecha_hasta
-    ]
-
-
-def mostrar_transacciones(transacciones):
+def mostrar_transacciones(cartera: Cartera):
     st.subheader("Transacciones acumuladas:")
 
-    if transacciones:
-        df = pd.DataFrame(transacciones)
+    if not cartera.esta_vacia():
+        df = cartera.a_dataframe()
         st.dataframe(df)
 
         csv_data = df.to_csv(index=False).encode("utf-8")
@@ -148,17 +219,15 @@ def mostrar_transacciones(transacciones):
         st.info("No hay transacciones registradas")
 
 
-def mostrar_resumen(transacciones):
-    if not transacciones:
+def mostrar_resumen(cartera: Cartera):
+    if cartera.esta_vacia():
         st.info("No hay transacciones registradas")
         return
 
-    ingresos = sum(t.get("monto", t.get("importe", 0.0)) for t in transacciones if t["tipo"] == "Ingreso")
-    gastos = sum(t.get("monto", t.get("importe", 0.0)) for t in transacciones if t["tipo"] == "Gasto")
-    balance = ingresos - gastos
-
-    gastos_list = [t.get("monto", t.get("importe", 0.0)) for t in transacciones if t["tipo"] == "Gasto"]
-    gasto_promedio = sum(gastos_list) / len(gastos_list) if gastos_list else 0.0
+    ingresos = cartera.total_ingresos()
+    gastos = cartera.total_gastos()
+    balance = cartera.balance()
+    gasto_promedio = cartera.gasto_promedio()
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Ingresos", f"{ingresos:.2f} €")
@@ -167,30 +236,13 @@ def mostrar_resumen(transacciones):
     col4.metric("Gasto promedio", f"{gasto_promedio:.2f} €")
 
 
-def mostrar_analisis(transacciones):
-    gastos = [t for t in transacciones if t["tipo"] == "Gasto"]
-
-    if not gastos:
+def mostrar_analisis(cartera: Cartera):
+    if not cartera.tiene_gastos():
         st.info("No hay transacciones de tipo Gasto registradas")
         return
 
-    # Agregación por categoría usando diccionarios y bucle for
-    gastos_por_categoria = {}
-    for t in gastos:
-        cat = t["categoria"]
-        val = t.get("monto", t.get("importe", 0.0))
-        gastos_por_categoria[cat] = gastos_por_categoria.get(cat, 0.0) + val
-
-    # Agregación por fecha usando diccionarios y bucle for
-    gastos_por_fecha = {}
-    for t in gastos:
-        fec = t["fecha"]
-        val = t.get("monto", t.get("importe", 0.0))
-        gastos_por_fecha[fec] = gastos_por_fecha.get(fec, 0.0) + val
-
-    # DataFrames de 2 columnas construidos al final únicamente para la visualización
-    df_categoria = pd.DataFrame(list(gastos_por_categoria.items()), columns=["Categoría", "Total"])
-    df_fecha = pd.DataFrame(list(gastos_por_fecha.items()), columns=["Fecha", "Total"])
+    df_categoria = cartera.gastos_por_categoria_df()
+    df_fecha = cartera.gastos_por_fecha_df()
 
     st.subheader("Gastos por categoría")
     st.bar_chart(df_categoria, x="Categoría", y="Total")
@@ -207,17 +259,17 @@ with st.sidebar:
     importar_csv()
     categorias_sel, fecha_desde, fecha_hasta = mostrar_filtros()
 
-transacciones_filtradas = filtrar_transacciones(st.session_state.transacciones, categorias_sel, fecha_desde, fecha_hasta)
+cartera_filtrada = st.session_state.cartera.filtrar(categorias_sel, fecha_desde, fecha_hasta)
 
 tab_resumen, tab_movimientos, tab_analisis = st.tabs(["Resumen", "Movimientos", "Análisis"])
 
 with tab_resumen:
-    mostrar_resumen(transacciones_filtradas)
+    mostrar_resumen(cartera_filtrada)
 
 with tab_movimientos:
-    mostrar_transacciones(transacciones_filtradas)
+    mostrar_transacciones(cartera_filtrada)
 
 with tab_analisis:
-    mostrar_analisis(transacciones_filtradas)
+    mostrar_analisis(cartera_filtrada)
 
 guardar_transacciones()
